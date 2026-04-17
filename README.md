@@ -2,7 +2,7 @@
 
 A system that answers **"How many documents satisfy a semantic condition?"** by combining vector embeddings, clustering, and LLM-based filtering.
 
-Implements a `semantic_count(*)` operator over the [STS-B dataset](https://huggingface.co/datasets/mteb/stsbenchmark-sts) using `sentence-transformers/all-MiniLM-L6-v2` for embeddings, HDBSCAN for clustering, and a local LLM via [Ollama](https://ollama.com) for semantic reasoning.
+Implements a `semantic_count(*)` operator over the [STS-B dataset](https://huggingface.co/datasets/mteb/stsbenchmark-sts) using `sentence-transformers/all-MiniLM-L6-v2` for embeddings, HDBSCAN for clustering, and Google Colab's built-in LLM for semantic reasoning.
 
 ## Architecture
 
@@ -16,23 +16,22 @@ Query ("sentences about happiness")
   └─ Return final semantic count + stats
 ```
 
-## Quick Start
+## Quick Start (Google Colab)
 
-```bash
-# 1. Install Ollama (https://ollama.com) and pull a model
-ollama pull llama3.2
+Open `notebooks/semantic_counting_demo.ipynb` in Google Colab — it clones the repo, installs dependencies, and runs the full pipeline. No API keys needed.
 
-# 2. Install Python dependencies
-pip install -r requirements.txt
-
-# 3. Run the full pipeline
-python run_pipeline.py
-
-# 4. Run with a custom query
-python run_pipeline.py --query "sentences about weather"
+The first cell handles setup:
+```python
+!git clone https://github.com/donggunkwak/Semantic-Count.git
+%cd Semantic-Count
+!pip install -q -r requirements.txt
 ```
 
-No API keys required — everything runs locally.
+LLM calls use Colab's built-in AI:
+```python
+from google.colab import ai
+response = ai.generate_text("your prompt here")
+```
 
 ## Project Structure
 
@@ -42,7 +41,7 @@ No API keys required — everything runs locally.
 │   ├── data_loader.py     # Load STS-B dataset
 │   ├── embeddings.py      # Generate & cache sentence embeddings
 │   ├── clustering.py      # HDBSCAN clustering + cluster centroids
-│   ├── llm.py             # Ollama local LLM wrapper (swappable)
+│   ├── llm.py             # Google Colab AI wrapper (swappable)
 │   ├── summarizer.py      # LLM-based cluster summarization
 │   ├── query_engine.py    # Semantic counting query engine
 │   └── baseline.py        # Embedding-only baseline (no LLM filtering)
@@ -50,7 +49,7 @@ No API keys required — everything runs locally.
 │   └── semantic_counting_demo.ipynb
 ├── data/                  # Cached embeddings, clusters, summaries
 ├── outputs/               # Query results
-├── run_pipeline.py        # CLI entry point
+├── run_pipeline.py        # CLI entry point (requires Colab runtime)
 └── requirements.txt
 ```
 
@@ -72,15 +71,14 @@ All tunable parameters live in `src/config.py`:
 - `HDBSCAN_MIN_CLUSTER_SIZE`: minimum cluster size
 - `TOP_K_CLUSTERS`: clusters to retrieve at query time
 - `SUMMARY_SAMPLE_SIZE`: sentences sampled per cluster for summarization
-- `LLM_MODEL`: Ollama model name (default: `llama3.2`)
 
 ## Notebook
 
-`notebooks/semantic_counting_demo.ipynb` walks through the full pipeline interactively, runs example queries ("sentences about happiness", "sentences about disagreement"), and displays intermediate results.
+`notebooks/semantic_counting_demo.ipynb` walks through the full pipeline interactively, runs example queries ("sentences about happiness", "sentences about disagreement"), and displays intermediate results including a baseline comparison.
 
 ## Design Decisions
 
-- **Ollama for local inference**: no API keys, no credits, fully offline. Swap models by changing `LLM_MODEL` in `src/config.py`.
+- **Google Colab AI**: zero-config LLM access via `google.colab.ai.generate_text()`. No API keys, no credits, no external accounts.
 - **HDBSCAN over K-Means**: density-based clustering handles variable-density regions and produces a noise label (-1) for outliers, which is more realistic for semantic grouping.
 - **Two-stage LLM filtering**: first filter at the cluster level (cheap — one call per cluster summary), then at the document level (expensive — one call per doc). This reduces total LLM calls significantly.
 - **Caching**: embeddings, cluster assignments, and cluster summaries are all saved to disk. Re-running the pipeline skips completed stages.

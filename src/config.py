@@ -25,10 +25,8 @@ HDBSCAN_MIN_SAMPLES = 5
 TOP_K_CLUSTERS = 5
 SUMMARY_SAMPLE_SIZE = 15  # sentences sampled per cluster for summarization
 
-# ── LLM (Ollama — local, no API key needed) ──────────────────────────────────
-LLM_MODEL = "llama3.2"
-LLM_TEMPERATURE = 0.0
-LLM_MAX_TOKENS = 512
+# ── LLM (Google Colab AI — built-in, no API key needed) ──────────────────────
+LLM_MODEL = "google/gemini-2.0-flash-lite"
 
 # ── Ensure directories exist ──────────────────────────────────────────────────
 DATA_DIR.mkdir(parents=True, exist_ok=True)

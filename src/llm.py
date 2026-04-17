@@ -1,15 +1,10 @@
-"""Ollama local LLM wrapper — no API keys required.
-
-Requires Ollama to be installed and running locally.
-Install: https://ollama.com
-Pull a model: `ollama pull llama3.2`
-"""
+"""Google Colab AI wrapper — uses Colab's built-in LLM, no API keys needed."""
 
 from __future__ import annotations
 
-import ollama
+from google.colab import ai
 
-from src.config import LLM_MODEL, LLM_TEMPERATURE, LLM_MAX_TOKENS
+from src.config import LLM_MODEL
 
 
 def chat(
@@ -17,22 +12,11 @@ def chat(
     *,
     system: str = "You are a helpful assistant.",
     model: str = LLM_MODEL,
-    temperature: float = LLM_TEMPERATURE,
-    max_tokens: int = LLM_MAX_TOKENS,
 ) -> str:
-    """Send a single-turn chat completion and return the assistant reply."""
-    response = ollama.chat(
-        model=model,
-        messages=[
-            {"role": "system", "content": system},
-            {"role": "user", "content": prompt},
-        ],
-        options={
-            "temperature": temperature,
-            "num_predict": max_tokens,
-        },
-    )
-    return response["message"]["content"].strip()
+    """Generate text using Colab's built-in LLM."""
+    full_prompt = f"{system}\n\n{prompt}"
+    response = ai.generate_text(full_prompt, model_name=model)
+    return response.strip()
 
 
 def yes_no(
@@ -40,8 +24,7 @@ def yes_no(
     *,
     system: str = "You are a helpful assistant. Answer only YES or NO.",
     model: str = LLM_MODEL,
-    temperature: float = LLM_TEMPERATURE,
 ) -> bool:
     """Ask a yes/no question and return True for YES."""
-    answer = chat(prompt, system=system, model=model, temperature=temperature, max_tokens=8)
+    answer = chat(prompt, system=system, model=model)
     return answer.upper().startswith("YES")

@@ -1,59 +1,45 @@
-"""Thin OpenAI wrapper — swap this module to change the LLM backend."""
+"""Ollama local LLM wrapper — no API keys required.
+
+Requires Ollama to be installed and running locally.
+Install: https://ollama.com
+Pull a model: `ollama pull llama3.2`
+"""
 
 from __future__ import annotations
 
-import os
+import ollama
 
-from dotenv import load_dotenv
-from openai import OpenAI
-
-from src.config import LLM_MAX_TOKENS, LLM_TEMPERATURE, OPENAI_MODEL
-
-load_dotenv()
-
-_client: OpenAI | None = None
-
-
-def _get_client() -> OpenAI:
-    global _client
-    if _client is None:
-        api_key = os.getenv("OPENAI_API_KEY")
-        if not api_key:
-            raise EnvironmentError(
-                "OPENAI_API_KEY is not set. "
-                "Copy .env.example to .env and add your key."
-            )
-        _client = OpenAI(api_key=api_key)
-    return _client
+from src.config import LLM_MODEL, LLM_TEMPERATURE, LLM_MAX_TOKENS
 
 
 def chat(
     prompt: str,
     *,
     system: str = "You are a helpful assistant.",
-    model: str = OPENAI_MODEL,
+    model: str = LLM_MODEL,
     temperature: float = LLM_TEMPERATURE,
     max_tokens: int = LLM_MAX_TOKENS,
 ) -> str:
     """Send a single-turn chat completion and return the assistant reply."""
-    client = _get_client()
-    response = client.chat.completions.create(
+    response = ollama.chat(
         model=model,
-        temperature=temperature,
-        max_tokens=max_tokens,
         messages=[
             {"role": "system", "content": system},
             {"role": "user", "content": prompt},
         ],
+        options={
+            "temperature": temperature,
+            "num_predict": max_tokens,
+        },
     )
-    return response.choices[0].message.content.strip()
+    return response["message"]["content"].strip()
 
 
 def yes_no(
     prompt: str,
     *,
     system: str = "You are a helpful assistant. Answer only YES or NO.",
-    model: str = OPENAI_MODEL,
+    model: str = LLM_MODEL,
     temperature: float = LLM_TEMPERATURE,
 ) -> bool:
     """Ask a yes/no question and return True for YES."""

@@ -2,7 +2,7 @@
 
 A system that answers **"How many documents satisfy a semantic condition?"** by combining vector embeddings, clustering, and LLM-based filtering.
 
-Implements a `semantic_count(*)` operator over the [STS-B dataset](https://huggingface.co/datasets/mteb/stsbenchmark-sts) using `sentence-transformers/all-MiniLM-L6-v2` for embeddings, HDBSCAN for clustering, and OpenAI for semantic reasoning.
+Implements a `semantic_count(*)` operator over the [STS-B dataset](https://huggingface.co/datasets/mteb/stsbenchmark-sts) using `sentence-transformers/all-MiniLM-L6-v2` for embeddings, HDBSCAN for clustering, and a local LLM via [Ollama](https://ollama.com) for semantic reasoning.
 
 ## Architecture
 
@@ -19,12 +19,11 @@ Query ("sentences about happiness")
 ## Quick Start
 
 ```bash
-# 1. Install dependencies
-pip install -r requirements.txt
+# 1. Install Ollama (https://ollama.com) and pull a model
+ollama pull llama3.2
 
-# 2. Set up API key
-cp .env.example .env
-# Edit .env with your OpenAI API key
+# 2. Install Python dependencies
+pip install -r requirements.txt
 
 # 3. Run the full pipeline
 python run_pipeline.py
@@ -32,6 +31,8 @@ python run_pipeline.py
 # 4. Run with a custom query
 python run_pipeline.py --query "sentences about weather"
 ```
+
+No API keys required — everything runs locally.
 
 ## Project Structure
 
@@ -41,7 +42,7 @@ python run_pipeline.py --query "sentences about weather"
 │   ├── data_loader.py     # Load STS-B dataset
 │   ├── embeddings.py      # Generate & cache sentence embeddings
 │   ├── clustering.py      # HDBSCAN clustering + cluster centroids
-│   ├── llm.py             # OpenAI API wrapper (swappable)
+│   ├── llm.py             # Ollama local LLM wrapper (swappable)
 │   ├── summarizer.py      # LLM-based cluster summarization
 │   ├── query_engine.py    # Semantic counting query engine
 │   └── baseline.py        # Embedding-only baseline (no LLM filtering)
@@ -50,8 +51,7 @@ python run_pipeline.py --query "sentences about weather"
 ├── data/                  # Cached embeddings, clusters, summaries
 ├── outputs/               # Query results
 ├── run_pipeline.py        # CLI entry point
-├── requirements.txt
-└── .env.example
+└── requirements.txt
 ```
 
 ## Pipeline Stages
@@ -72,7 +72,7 @@ All tunable parameters live in `src/config.py`:
 - `HDBSCAN_MIN_CLUSTER_SIZE`: minimum cluster size
 - `TOP_K_CLUSTERS`: clusters to retrieve at query time
 - `SUMMARY_SAMPLE_SIZE`: sentences sampled per cluster for summarization
-- `OPENAI_MODEL`: which OpenAI model to use
+- `LLM_MODEL`: Ollama model name (default: `llama3.2`)
 
 ## Notebook
 
@@ -80,6 +80,7 @@ All tunable parameters live in `src/config.py`:
 
 ## Design Decisions
 
+- **Ollama for local inference**: no API keys, no credits, fully offline. Swap models by changing `LLM_MODEL` in `src/config.py`.
 - **HDBSCAN over K-Means**: density-based clustering handles variable-density regions and produces a noise label (-1) for outliers, which is more realistic for semantic grouping.
 - **Two-stage LLM filtering**: first filter at the cluster level (cheap — one call per cluster summary), then at the document level (expensive — one call per doc). This reduces total LLM calls significantly.
 - **Caching**: embeddings, cluster assignments, and cluster summaries are all saved to disk. Re-running the pipeline skips completed stages.

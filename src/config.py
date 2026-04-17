@@ -25,8 +25,8 @@ HDBSCAN_MIN_SAMPLES = 5
 TOP_K_CLUSTERS = 5
 SUMMARY_SAMPLE_SIZE = 15  # sentences sampled per cluster for summarization
 
-# ── LLM ───────────────────────────────────────────────────────────────────────
-OPENAI_MODEL = "gpt-4o-mini"
+# ── LLM (Ollama — local, no API key needed) ──────────────────────────────────
+LLM_MODEL = "llama3.2"
 LLM_TEMPERATURE = 0.0
 LLM_MAX_TOKENS = 512
 

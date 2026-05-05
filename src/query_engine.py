@@ -36,14 +36,13 @@ _CLUSTER_RELEVANCE_PROMPT = (
 )
 
 _DOC_RELEVANCE_PROMPT = (
-    'A user is looking for sentences similar to: "{query}"\n\n'
-    "Is the following sentence somewhat similar in meaning?\n"
-    '"{sentence}"\n\n'
-    "Answer YES or NO, followed by a similarity score from 0.0 to 1.0 "
-    "(where 1.0 means the sentence describes essentially the same thing). "
-    "Format: YES 0.85 or NO 0.15"
+    "Determine if the following two sentences are semantically similar.\n"
+    "Sentence A: '{query}'\n"
+    "Sentence B: '{sentence}'\n\n"
+    "Instructions: If they are similar, respond with 'Decision: 1' followed by a similarity score. "
+    "If they are not similar, respond with 'Decision: 0'.\n"
+    "Format your response exactly like this: 'Decision: [0 or 1], Score: [score between 0 and 1]'"
 )
-
 
 # ── Result dataclass ──────────────────────────────────────────────────────────
 

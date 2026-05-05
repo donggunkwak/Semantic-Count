@@ -2,12 +2,12 @@
 
 A system that answers **"How many documents satisfy a semantic condition?"** by combining vector embeddings, clustering, and LLM-based filtering with **similarity scoring**.
 
-Implements a `semantic_count(*)` operator over the [STS-B dataset](https://huggingface.co/datasets/mteb/stsbenchmark-sts) using `sentence-transformers/all-MiniLM-L6-v2` for embeddings, HDBSCAN for clustering, and Google Colab's built-in LLM for semantic reasoning. Each matched document receives a similarity score (0–1), and results are ranked from highest to lowest.
+Implements a `semantic_count(*)` operator over the [Banking77 dataset](https://huggingface.co/datasets/mteb/banking77) using `sentence-transformers/all-MiniLM-L6-v2` for embeddings, HDBSCAN for clustering, and Google Colab's built-in LLM for semantic reasoning. Each matched document receives a similarity score (0–1), and results are ranked from highest to lowest.
 
 ## Architecture
 
 ```
-Query ("A person is riding a bicycle down the street")
+Query ("I want to transfer money to another account")
   │
   ├─ Embed query with all-MiniLM-L6-v2
   ├─ Find top-K nearest clusters by centroid distance
@@ -39,7 +39,7 @@ response = ai.generate_text("your prompt here")
 ```
 ├── src/
 │   ├── config.py          # Paths, constants, configuration
-│   ├── data_loader.py     # Load STS-B dataset
+│   ├── data_loader.py     # Load Banking77 dataset
 │   ├── embeddings.py      # Generate & cache sentence embeddings
 │   ├── clustering.py      # HDBSCAN clustering + cluster centroids
 │   ├── llm.py             # Google Colab AI wrapper (swappable)
@@ -58,7 +58,7 @@ response = ai.generate_text("your prompt here")
 
 | Stage | Description | Artifact |
 |-------|-------------|----------|
-| **Load** | Fetch STS-B from Hugging Face, deduplicate sentences | — |
+| **Load** | Fetch Banking77 from Hugging Face, deduplicate sentences | — |
 | **Embed** | Encode with all-MiniLM-L6-v2 (384-dim) | `data/embeddings.npy` |
 | **Cluster** | HDBSCAN over embeddings | `data/cluster_assignments.json` |
 | **Summarize** | LLM summarizes sampled sentences per cluster | `data/cluster_summaries.json` |

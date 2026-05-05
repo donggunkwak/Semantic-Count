@@ -10,7 +10,7 @@ from dataclasses import asdict
 from src.baseline import baseline_count
 from src.clustering import cluster_embeddings
 from src.config import RESULTS_PATH
-from src.data_loader import load_stsb_sentences
+from src.data_loader import load_banking77_sentences
 from src.embeddings import generate_embeddings
 from src.query_engine import semantic_count
 from src.summarizer import summarize_clusters
@@ -23,7 +23,7 @@ def main() -> None:
     parser.add_argument(
         "--query",
         type=str,
-        default="A person is riding a bicycle down the street",
+        default="I want to transfer money to another account",
         help="Natural-language query for semantic counting",
     )
     parser.add_argument(
@@ -48,7 +48,7 @@ def main() -> None:
     print("=" * 60)
     print("STAGE 1 — Load data")
     print("=" * 60)
-    sentences = load_stsb_sentences()
+    sentences = load_banking77_sentences()
 
     print("\n" + "=" * 60)
     print("STAGE 2 — Generate embeddings")

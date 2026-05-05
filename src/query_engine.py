@@ -28,19 +28,19 @@ from src.llm import yes_no, yes_no_score
 # ── Prompts ────────────────────────────────────────────────────────────────────
 
 _CLUSTER_RELEVANCE_PROMPT = (
-    'A user is looking for: "{query}"\n\n'
+    'A user is looking for sentences similar to: "{query}"\n\n'
     "Here is a summary of a document cluster:\n"
     '"{summary}"\n\n'
-    "Could this cluster contain documents that satisfy the user\'s query? "
+    "Could this cluster contain sentences that are somewhat similar in meaning? "
     "Answer YES or NO."
 )
 
 _DOC_RELEVANCE_PROMPT = (
-    'A user is looking for: "{query}"\n\n'
-    "Does the following sentence satisfy the query?\n"
+    'A user is looking for sentences similar to: "{query}"\n\n'
+    "Is the following sentence somewhat similar in meaning?\n"
     '"{sentence}"\n\n'
     "Answer YES or NO, followed by a similarity score from 0.0 to 1.0 "
-    "(where 1.0 means the sentence is exactly the same as the query). "
+    "(where 1.0 means the sentence describes essentially the same thing). "
     "Format: YES 0.85 or NO 0.15"
 )
 

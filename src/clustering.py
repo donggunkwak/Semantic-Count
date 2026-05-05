@@ -1,8 +1,4 @@
-"""HDBSCAN clustering over sentence embeddings.
-
-Uses UMAP to reduce dimensionality before clustering for performance on
-large datasets (O(n²) pairwise distances become tractable at ~25 dims).
-"""
+"""HDBSCAN clustering over sentence embeddings."""
 
 from __future__ import annotations
 
@@ -11,15 +7,12 @@ from pathlib import Path
 
 import hdbscan
 import numpy as np
-import umap
 
 from src.config import (
     CLUSTER_ASSIGNMENTS_PATH,
     HDBSCAN_MIN_CLUSTER_SIZE,
     HDBSCAN_MIN_SAMPLES,
 )
-
-_UMAP_N_COMPONENTS = 25
 
 
 def cluster_embeddings(
@@ -28,7 +21,7 @@ def cluster_embeddings(
     min_samples: int = HDBSCAN_MIN_SAMPLES,
     cache_path: Path = CLUSTER_ASSIGNMENTS_PATH,
 ) -> list[int]:
-    """Run UMAP + HDBSCAN and return per-document cluster labels (-1 = noise).
+    """Run HDBSCAN and return per-document cluster labels (-1 = noise).
 
     Results are cached to *cache_path*.
     """
@@ -45,15 +38,6 @@ def cluster_embeddings(
             return labels
         print("[clustering] Cache size mismatch — reclustering.")
 
-    print(f"[clustering] Reducing {embeddings.shape[1]}d → {_UMAP_N_COMPONENTS}d with UMAP …")
-    reducer = umap.UMAP(
-        n_components=_UMAP_N_COMPONENTS,
-        metric="cosine",
-        n_jobs=-1,
-        random_state=42,
-    )
-    reduced = reducer.fit_transform(embeddings)
-
     print(
         f"[clustering] Running HDBSCAN "
         f"(min_cluster_size={min_cluster_size}, min_samples={min_samples}) …"
@@ -62,9 +46,8 @@ def cluster_embeddings(
         min_cluster_size=min_cluster_size,
         min_samples=min_samples,
         metric="euclidean",
-        core_dist_n_jobs=-1,
     )
-    clusterer.fit(reduced)
+    clusterer.fit(embeddings)
     labels = clusterer.labels_.tolist()
 
     n_clusters = len(set(labels) - {-1})

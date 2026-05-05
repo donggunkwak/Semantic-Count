@@ -3,10 +3,15 @@
 from __future__ import annotations
 
 import re
+import time
 
 from google.colab import ai
 
 from src.config import LLM_MODEL
+
+_CALL_DELAY = 0.5          # seconds between LLM calls to avoid rate limits
+_MAX_RETRIES = 3
+_RETRY_BACKOFF_BASE = 2.0  # exponential backoff multiplier
 
 
 def chat(
@@ -15,9 +20,21 @@ def chat(
     system: str = "You are a helpful assistant.",
     model: str = LLM_MODEL,
 ) -> str:
-    """Generate text using Colab's built-in LLM."""
+    """Generate text using Colab's built-in LLM with retry + rate-limit delay."""
     full_prompt = f"{system}\n\n{prompt}"
+    for attempt in range(_MAX_RETRIES):
+        try:
+            response = ai.generate_text(full_prompt, model_name=model)
+            time.sleep(_CALL_DELAY)
+            return response.strip()
+        except Exception as exc:
+            wait = _RETRY_BACKOFF_BASE ** attempt
+            print(f"[llm] attempt {attempt + 1}/{_MAX_RETRIES} failed: {exc}  "
+                  f"— retrying in {wait:.0f}s")
+            time.sleep(wait)
+    # Final attempt — let it raise if it fails
     response = ai.generate_text(full_prompt, model_name=model)
+    time.sleep(_CALL_DELAY)
     return response.strip()
 
 

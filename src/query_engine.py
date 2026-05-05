@@ -39,9 +39,8 @@ _DOC_RELEVANCE_PROMPT = (
     "Determine if the following two sentences are semantically similar.\n"
     "Sentence A: '{query}'\n"
     "Sentence B: '{sentence}'\n\n"
-    "Instructions: If they are similar, respond with 'Decision: 1' followed by a similarity score. "
-    "If they are not similar, respond with 'Decision: 0'.\n"
-    "Format your response exactly like this: 'Decision: [0 or 1], Score: [score between 0 and 1]'"
+    "Are these sentences semantically similar? "
+    "Answer YES followed by a similarity score (0.0–1.0), or NO followed by a score."
 )
 
 # ── Result dataclass ──────────────────────────────────────────────────────────

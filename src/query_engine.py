@@ -14,6 +14,7 @@ Pipeline:
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
@@ -23,7 +24,7 @@ from tqdm import tqdm
 
 from src.clustering import compute_cluster_centroids, get_cluster_members
 from src.config import EMBEDDING_MODEL, OUTPUT_DIR, RESULTS_PATH, TOP_K_CLUSTERS
-from src.llm import yes_no, yes_no_score
+from src.llm import chat, yes_no
 
 # ── Prompts ────────────────────────────────────────────────────────────────────
 
@@ -39,8 +40,9 @@ _DOC_RELEVANCE_PROMPT = (
     "Determine if the following two sentences are semantically similar.\n"
     "Sentence A: '{query}'\n"
     "Sentence B: '{sentence}'\n\n"
-    "Are these sentences semantically similar? "
-    "Answer YES followed by a similarity score (0.0–1.0), or NO followed by a score."
+    "Instructions: If they are similar, respond with 'Decision: 1' followed by a similarity score. "
+    "If they are not similar, respond with 'Decision: 0'.\n"
+    "Format your response exactly like this: 'Decision: [0 or 1], Score: [score between 0 and 1]'"
 )
 
 # ── Result dataclass ──────────────────────────────────────────────────────────
@@ -121,7 +123,8 @@ def semantic_count(
         "passed LLM relevance filter"
     )
 
-    # 4. Check individual documents — get yes/no + similarity score
+    # 4. Score individual documents — all documents in relevant clusters are
+    #    selected; the LLM score is recorded for evaluation only.
     members = get_cluster_members(labels)
     docs_checked = 0
     scored_sentences: list[dict] = []
@@ -131,9 +134,11 @@ def semantic_count(
         for idx in tqdm(indices, desc=f"Cluster {cid}", leave=False):
             sentence = sentences[idx]
             prompt = _DOC_RELEVANCE_PROMPT.format(query=query, sentence=sentence)
-            is_relevant, score = yes_no_score(prompt)
-            if is_relevant:
-                scored_sentences.append({"sentence": sentence, "score": score})
+            response = chat(prompt, delay=0.2)
+            is_relevant, score = _parse_decision_score(response)
+            scored_sentences.append(
+                {"sentence": sentence, "score": score, "llm_yes": is_relevant}
+            )
             docs_checked += 1
 
     scored_sentences.sort(key=lambda x: x["score"], reverse=True)
@@ -167,6 +172,16 @@ def semantic_count(
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
+
+def _parse_decision_score(response: str) -> tuple[bool, float]:
+    """Parse 'Decision: [0|1], Score: [float]' format from LLM response."""
+    decision_match = re.search(r"Decision:\s*([01])", response)
+    score_match = re.search(r"Score:\s*(\d+\.?\d*)", response)
+
+    is_relevant = bool(int(decision_match.group(1))) if decision_match else False
+    score = float(score_match.group(1)) if score_match else (1.0 if is_relevant else 0.0)
+    return is_relevant, max(0.0, min(1.0, score))
 
 
 def _cosine_similarity(vec: np.ndarray, matrix: np.ndarray) -> np.ndarray:

@@ -7,8 +7,8 @@ Pipeline:
   1. Embed the query.
   2. Retrieve top-K nearest clusters (by centroid cosine similarity).
   3. LLM filters clusters whose summary is relevant to the query.
-  4. LLM checks individual documents in surviving clusters.
-  5. Return count + diagnostics.
+  4. LLM checks individual documents (yes/no + similarity score 0–1).
+  5. Rank matched sentences by score, return count + ranked list.
 """
 
 from __future__ import annotations
@@ -22,8 +22,8 @@ from sentence_transformers import SentenceTransformer
 from tqdm import tqdm
 
 from src.clustering import compute_cluster_centroids, get_cluster_members
-from src.config import EMBEDDING_MODEL, RESULTS_PATH, TOP_K_CLUSTERS
-from src.llm import yes_no
+from src.config import EMBEDDING_MODEL, OUTPUT_DIR, RESULTS_PATH, TOP_K_CLUSTERS
+from src.llm import yes_no, yes_no_score
 
 # ── Prompts ────────────────────────────────────────────────────────────────────
 
@@ -39,7 +39,9 @@ _DOC_RELEVANCE_PROMPT = (
     'A user is looking for: "{query}"\n\n'
     "Does the following sentence satisfy the query?\n"
     '"{sentence}"\n\n'
-    "Answer YES or NO."
+    "Answer YES or NO, followed by a similarity score from 0.0 to 1.0 "
+    "(where 1.0 means the sentence is exactly the same as the query). "
+    "Format: YES 0.85 or NO 0.15"
 )
 
 
@@ -54,12 +56,21 @@ class SemanticCountResult:
     clusters_after_llm_filter: int
     documents_checked: int
     documents_matched: int
-    matched_sentences: list[str] = field(default_factory=list)
+    scored_sentences: list[dict] = field(default_factory=list)
     cluster_details: list[dict] = field(default_factory=list)
 
     @property
     def semantic_count(self) -> int:
         return self.documents_matched
+
+    @property
+    def matched_sentences(self) -> list[str]:
+        return [entry["sentence"] for entry in self.scored_sentences]
+
+    @property
+    def ranked_sentences(self) -> list[dict]:
+        """Matched sentences sorted by similarity score (highest first)."""
+        return sorted(self.scored_sentences, key=lambda x: x["score"], reverse=True)
 
 
 # ── Engine ────────────────────────────────────────────────────────────────────
@@ -75,6 +86,7 @@ def semantic_count(
     top_k: int = TOP_K_CLUSTERS,
     model_name: str = EMBEDDING_MODEL,
     save_path: Path | None = RESULTS_PATH,
+    save_ranked_txt: bool = True,
 ) -> SemanticCountResult:
     """Run the full semantic-counting pipeline for *query*."""
 
@@ -111,19 +123,22 @@ def semantic_count(
         "passed LLM relevance filter"
     )
 
-    # 4. Check individual documents in surviving clusters
+    # 4. Check individual documents — get yes/no + similarity score
     members = get_cluster_members(labels)
     docs_checked = 0
-    matched_sentences: list[str] = []
+    scored_sentences: list[dict] = []
 
     for cid in relevant_ids:
         indices = members.get(cid, [])
         for idx in tqdm(indices, desc=f"Cluster {cid}", leave=False):
             sentence = sentences[idx]
             prompt = _DOC_RELEVANCE_PROMPT.format(query=query, sentence=sentence)
-            if yes_no(prompt):
-                matched_sentences.append(sentence)
+            is_relevant, score = yes_no_score(prompt)
+            if is_relevant:
+                scored_sentences.append({"sentence": sentence, "score": score})
             docs_checked += 1
+
+    scored_sentences.sort(key=lambda x: x["score"], reverse=True)
 
     result = SemanticCountResult(
         query=query,
@@ -131,8 +146,8 @@ def semantic_count(
         clusters_retrieved=len(retrieved_ids),
         clusters_after_llm_filter=len(relevant_ids),
         documents_checked=docs_checked,
-        documents_matched=len(matched_sentences),
-        matched_sentences=matched_sentences,
+        documents_matched=len(scored_sentences),
+        scored_sentences=scored_sentences,
         cluster_details=cluster_details,
     )
 
@@ -145,6 +160,10 @@ def semantic_count(
         save_path.parent.mkdir(parents=True, exist_ok=True)
         _append_result(save_path, result)
         print(f"[query] Results appended to {save_path}")
+
+    if save_ranked_txt:
+        txt_path = _save_ranked_txt(result)
+        print(f"[query] Ranked results saved to {txt_path}")
 
     return result
 
@@ -168,3 +187,20 @@ def _append_result(path: Path, result: SemanticCountResult) -> None:
     existing.append(asdict(result))
     with open(path, "w", encoding="utf-8") as f:
         json.dump(existing, f, ensure_ascii=False, indent=2)
+
+
+def _save_ranked_txt(result: SemanticCountResult) -> Path:
+    """Write ranked matched sentences to a .txt file in the outputs dir."""
+    safe_name = "".join(c if c.isalnum() or c in " _-" else "_" for c in result.query)
+    safe_name = safe_name.strip().replace(" ", "_")[:80]
+    txt_path = OUTPUT_DIR / f"ranked_{safe_name}.txt"
+    txt_path.parent.mkdir(parents=True, exist_ok=True)
+
+    with open(txt_path, "w", encoding="utf-8") as f:
+        f.write(f"Query: {result.query}\n")
+        f.write(f"Total matched sentences: {result.semantic_count}\n")
+        f.write("=" * 70 + "\n\n")
+        for rank, entry in enumerate(result.ranked_sentences, start=1):
+            f.write(f"{rank:>4}. [score={entry['score']:.4f}] {entry['sentence']}\n")
+
+    return txt_path

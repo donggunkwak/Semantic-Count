@@ -23,7 +23,7 @@ def main() -> None:
     parser.add_argument(
         "--query",
         type=str,
-        default="sentences about happiness",
+        default="A person is riding a bicycle down the street",
         help="Natural-language query for semantic counting",
     )
     parser.add_argument(

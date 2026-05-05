@@ -1,19 +1,20 @@
 # Semantic Counting in Vector Databases
 
-A system that answers **"How many documents satisfy a semantic condition?"** by combining vector embeddings, clustering, and LLM-based filtering.
+A system that answers **"How many documents satisfy a semantic condition?"** by combining vector embeddings, clustering, and LLM-based filtering with **similarity scoring**.
 
-Implements a `semantic_count(*)` operator over the [STS-B dataset](https://huggingface.co/datasets/mteb/stsbenchmark-sts) using `sentence-transformers/all-MiniLM-L6-v2` for embeddings, HDBSCAN for clustering, and Google Colab's built-in LLM for semantic reasoning.
+Implements a `semantic_count(*)` operator over the [STS-B dataset](https://huggingface.co/datasets/mteb/stsbenchmark-sts) using `sentence-transformers/all-MiniLM-L6-v2` for embeddings, HDBSCAN for clustering, and Google Colab's built-in LLM for semantic reasoning. Each matched document receives a similarity score (0–1), and results are ranked from highest to lowest.
 
 ## Architecture
 
 ```
-Query ("sentences about happiness")
+Query ("A person is riding a bicycle down the street")
   │
   ├─ Embed query with all-MiniLM-L6-v2
   ├─ Find top-K nearest clusters by centroid distance
   ├─ LLM filters clusters by summary relevance
-  ├─ LLM checks individual documents in surviving clusters
-  └─ Return final semantic count + stats
+  ├─ LLM checks individual documents (yes/no + similarity score 0–1)
+  ├─ Rank matched sentences by score (highest → lowest)
+  └─ Return semantic count + ranked results (.txt file)
 ```
 
 ## Quick Start (Google Colab)
@@ -61,7 +62,7 @@ response = ai.generate_text("your prompt here")
 | **Embed** | Encode with all-MiniLM-L6-v2 (384-dim) | `data/embeddings.npy` |
 | **Cluster** | HDBSCAN over embeddings | `data/cluster_assignments.json` |
 | **Summarize** | LLM summarizes sampled sentences per cluster | `data/cluster_summaries.json` |
-| **Query** | Semantic count via cluster retrieval + LLM filtering | `outputs/results.json` |
+| **Query** | Semantic count via cluster retrieval + LLM scoring | `outputs/results.json`, `outputs/ranked_*.txt` |
 
 ## Configuration
 
@@ -74,11 +75,11 @@ All tunable parameters live in `src/config.py`:
 
 ## Notebook
 
-`notebooks/semantic_counting_demo.ipynb` walks through the full pipeline interactively, runs example queries ("sentences about happiness", "sentences about disagreement"), and displays intermediate results including a baseline comparison.
+`notebooks/semantic_counting_demo.ipynb` walks through the full pipeline interactively, runs five example queries, and displays ranked results with similarity scores plus a baseline comparison.
 
 ## Design Decisions
 
 - **Google Colab AI**: zero-config LLM access via `google.colab.ai.generate_text()`. No API keys, no credits, no external accounts.
 - **HDBSCAN over K-Means**: density-based clustering handles variable-density regions and produces a noise label (-1) for outliers, which is more realistic for semantic grouping.
-- **Two-stage LLM filtering**: first filter at the cluster level (cheap — one call per cluster summary), then at the document level (expensive — one call per doc). This reduces total LLM calls significantly.
+- **Two-stage LLM filtering with scoring**: first filter at the cluster level (cheap — one call per cluster summary), then at the document level each surviving document gets a yes/no decision **and** a similarity score (0–1). Matched sentences are ranked by score.
 - **Caching**: embeddings, cluster assignments, and cluster summaries are all saved to disk. Re-running the pipeline skips completed stages.

@@ -9,9 +9,9 @@ from google.colab import ai
 
 from src.config import LLM_MODEL
 
-_CALL_DELAY = 0.5          # seconds between LLM calls to avoid rate limits
-_MAX_RETRIES = 3
-_RETRY_BACKOFF_BASE = 2.0  # exponential backoff multiplier
+_CALL_DELAY = 1.0          # seconds between LLM calls to avoid rate limits
+_MAX_RETRIES = 5
+_RETRY_BACKOFF_BASE = 3.0  # exponential backoff multiplier
 
 
 def chat(

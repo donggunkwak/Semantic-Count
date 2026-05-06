@@ -87,6 +87,8 @@ def semantic_count(
     model_name: str = EMBEDDING_MODEL,
     save_path: Path | None = RESULTS_PATH,
     save_ranked_txt: bool = True,
+    dataset_labels: list[int] | None = None,
+    label_names: list[str] | None = None,
 ) -> SemanticCountResult:
     """Run the full semantic-counting pipeline for *query*."""
 
@@ -136,9 +138,12 @@ def semantic_count(
             prompt = _DOC_RELEVANCE_PROMPT.format(query=query, sentence=sentence)
             response = chat(prompt, delay=0.2)
             is_relevant, score = _parse_decision_score(response)
-            scored_sentences.append(
-                {"sentence": sentence, "score": score, "llm_yes": is_relevant}
-            )
+            entry = {"sentence": sentence, "score": score, "llm_yes": is_relevant}
+            if dataset_labels is not None:
+                entry["label"] = dataset_labels[idx]
+            if dataset_labels is not None and label_names is not None:
+                entry["label_text"] = label_names[dataset_labels[idx]]
+            scored_sentences.append(entry)
             docs_checked += 1
 
     scored_sentences.sort(key=lambda x: x["score"], reverse=True)

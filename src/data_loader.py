@@ -8,7 +8,10 @@ from pathlib import Path
 from datasets import load_dataset
 from tqdm import tqdm
 
-from src.config import SENTENCES_PATH
+from src.config import DATA_DIR, SENTENCES_PATH
+
+LABELS_PATH = DATA_DIR / "labels.json"
+LABEL_NAMES_PATH = DATA_DIR / "label_names.json"
 
 
 def load_banking77_sentences(cache_path: Path = SENTENCES_PATH) -> list[str]:
@@ -40,3 +43,50 @@ def load_banking77_sentences(cache_path: Path = SENTENCES_PATH) -> list[str]:
 
     print(f"[data_loader] Saved {len(sentences)} unique sentences to {cache_path}")
     return sentences
+
+
+def load_banking77_with_labels(
+    sentences_path: Path = SENTENCES_PATH,
+    labels_path: Path = LABELS_PATH,
+    label_names_path: Path = LABEL_NAMES_PATH,
+) -> tuple[list[str], list[int], list[str]]:
+    """Return (sentences, numeric_labels, label_names).
+
+    - sentences: deduplicated sentence list (same as load_banking77_sentences)
+    - numeric_labels: parallel list of Banking77 integer labels per sentence
+    - label_names: list of 77 label name strings (index = label id)
+    """
+    if sentences_path.exists() and labels_path.exists() and label_names_path.exists():
+        with open(sentences_path, "r", encoding="utf-8") as f:
+            sentences: list[str] = json.load(f)
+        with open(labels_path, "r", encoding="utf-8") as f:
+            numeric_labels: list[int] = json.load(f)
+        with open(label_names_path, "r", encoding="utf-8") as f:
+            label_names: list[str] = json.load(f)
+        print(f"[data_loader] Loaded {len(sentences)} sentences with labels from cache")
+        return sentences, numeric_labels, label_names
+
+    print("[data_loader] Downloading Banking77 dataset …")
+    ds = load_dataset("mteb/banking77", split="train+test")
+    label_names = ds.features["label"].names
+
+    seen: dict[str, int] = {}
+    sentences = []
+    numeric_labels = []
+    for row in tqdm(ds, desc="Extracting sentences"):
+        s = row["text"].strip()
+        if s and s not in seen:
+            seen[s] = row["label"]
+            sentences.append(s)
+            numeric_labels.append(row["label"])
+
+    sentences_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(sentences_path, "w", encoding="utf-8") as f:
+        json.dump(sentences, f, ensure_ascii=False, indent=2)
+    with open(labels_path, "w", encoding="utf-8") as f:
+        json.dump(numeric_labels, f)
+    with open(label_names_path, "w", encoding="utf-8") as f:
+        json.dump(label_names, f, ensure_ascii=False, indent=2)
+
+    print(f"[data_loader] Saved {len(sentences)} sentences + labels")
+    return sentences, numeric_labels, label_names

@@ -88,7 +88,7 @@ def semantic_count(
     save_path: Path | None = RESULTS_PATH,
     save_ranked_txt: bool = True,
     dataset_labels: list[int] | None = None,
-    label_names: list[str] | None = None,
+    label_texts: list[str] | None = None,
 ) -> SemanticCountResult:
     """Run the full semantic-counting pipeline for *query*."""
 
@@ -141,8 +141,8 @@ def semantic_count(
             entry = {"sentence": sentence, "score": score, "llm_yes": is_relevant}
             if dataset_labels is not None:
                 entry["label"] = dataset_labels[idx]
-            if dataset_labels is not None and label_names is not None:
-                entry["label_text"] = label_names[dataset_labels[idx]]
+            if label_texts is not None:
+                entry["label_text"] = label_texts[idx]
             scored_sentences.append(entry)
             docs_checked += 1
 

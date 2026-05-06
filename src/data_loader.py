@@ -67,8 +67,10 @@ def load_banking77_with_labels(
         return sentences, numeric_labels, label_names
 
     print("[data_loader] Downloading Banking77 dataset …")
-    ds = load_dataset("mteb/banking77", split="train+test")
-    label_names = ds.features["label"].names
+    ds_dict = load_dataset("mteb/banking77")
+    label_names = ds_dict["train"].features["label"].names
+    from datasets import concatenate_datasets
+    ds = concatenate_datasets([ds_dict["train"], ds_dict["test"]])
 
     seen: dict[str, int] = {}
     sentences = []
